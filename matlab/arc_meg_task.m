@@ -251,7 +251,7 @@ end
             if ~opts.useMouse, return; end
             button = 0;
             if ~isempty(mouse)
-                mousePending = [mousePending; mouse.poll()];
+                readMouse();
                 if ~isempty(mousePending)
                     button = mousePending(1, 1); tIn = mousePending(1, 2);
                     mousePending(1, :) = [];
@@ -276,10 +276,30 @@ end
             end
         end
 
+        function readMouse()
+            % Move new mouse events to mousePending. Log the merged wheel events.
+            ev = mouse.pollRaw();
+            for j = find(ev(:, 6))'
+                logEvent(ev(j, 2), 'wheel_merged', [], ['mouse:' mouseNames{ev(j, 1)}]);
+            end
+            mousePending = [mousePending; ev(ev(:, 6) == 0, 1:4)];
+        end
+
         function flushInput()
+            % Drop inputs not used yet (made during an animation), but log each one.
+            [~, firstPress] = KbQueueCheck;
+            if firstPress(escCode) > 0, error('arc:quit', 'Escape pressed'); end
+            for j = find(firstPress(keyCodes) > 0)
+                logEvent(firstPress(keyCodes(j)), 'input_dropped', [], ['key:' keyNames{j}]);
+            end
             KbQueueFlush;
+            if ~isempty(mouse)
+                readMouse();
+                for j = 1:size(mousePending, 1)
+                    logEvent(mousePending(j, 2), 'input_dropped', [], ['mouse:' mouseNames{mousePending(j, 1)}]);
+                end
+            end
             mousePending = zeros(0, 4);
-            if ~isempty(mouse), mouse.clear(); end
         end
     end
 

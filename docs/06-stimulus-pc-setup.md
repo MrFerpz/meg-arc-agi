@@ -76,4 +76,5 @@ arc_meg_task('P01', {'ls20', 'tr87', 'vc33'}, triggerMode='inpout', eyelink=true
 
 - Esc quits. Space starts the session and each next game.
 - The output goes to `C:\meg-arc-agi\data\<participant>_<date-time>\`: `events.tsv`, the ARC game recordings, and the EyeLink `.edf` file.
+- `events.tsv` has one row for every button press: `input` (used), `input_ignored` (the game cannot use it, code 60), `input_dropped` (made during an animation, not used) and `wheel_merged` (extra scroll event of one press). Each row has the press time in GetSecs seconds.
 - The facility's own trigger function will probably replace `writeTrigger` in `arc_meg_task.m`.
