@@ -40,7 +40,7 @@ arguments
     opts.gridPx (1,1) double {mustBeMultipleOf64(opts.gridPx)} = 640   % 640 fits a 1024x768 projector
     opts.photodiodePx (1,1) double = 60
     opts.useMouse (1,1) logical = true
-    opts.wheelMergeMs (1,1) double = 150   % wheel events closer than this = one button press
+    opts.wheelMergeMs (1,1) double = 1000   % max time from a scroll-button press to its release event
     opts.pythonMode (1,:) char {mustBeMember(opts.pythonMode, {'InProcess', 'OutOfProcess'})} = 'InProcess'
     opts.ptbDir (1,:) char = ''   % empty = repo/Psychtoolbox, else ../Psychtoolbox
 end

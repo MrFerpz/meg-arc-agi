@@ -73,6 +73,7 @@ arc_meg_task('P01', {'ls20', 'tr87', 'vc33'}, triggerMode='inpout', eyelink=true
 - `triggerMode='inpout'` finds the parallel port address itself. To set it, add `triggerAddress='E050'` (hex, no `0x`).
 - The 4-button mouse: in arrow games (ls20, tr87, tu93) wheel up = up, wheel down = down, left click = left, right click = right. In click games (ft09, lp85, r11l, s5i5, tn36, vc33, su15) left click = click at the cursor, right click = undo. Other games need more than 4 buttons.
 - `arc_mouse_hook.m` reads the wheel and the clicks on Windows. Psychtoolbox cannot read the wheel on Windows.
+- Each scroll-button press sends 2 wheel events: press and release (measured 280-410 ms apart). The task uses the first and logs the second as `wheel_merged`. The release must come within `wheelMergeMs` (default 1000 ms).
 
 - Esc quits. Space starts the session and each next game.
 - The output goes to `C:\meg-arc-agi\data\<participant>_<date-time>\`: `events.tsv`, the ARC game recordings, and the EyeLink `.edf` file.

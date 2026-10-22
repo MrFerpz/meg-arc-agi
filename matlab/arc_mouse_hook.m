@@ -1,13 +1,15 @@
 function mouse = arc_mouse_hook(wheelMergeMs)
 % ARC_MOUSE_HOOK  Read left click, right click, wheel up and wheel down on Windows.
-%   mouse = arc_mouse_hook();      % or arc_mouse_hook(wheelMergeMs), default 150
+%   mouse = arc_mouse_hook();      % or arc_mouse_hook(wheelMergeMs), default 1000
 %   ev = mouse.poll();   % n x 4: [button, t, x, y], oldest first
 %                        % button 1 = left, 2 = right, 3 = wheel up, 4 = wheel down
 %                        % t = GetSecs time of the event, x y = screen pixels
 %   ev = mouse.pollRaw();  % n x 6: [button, t, x, y, wheelDelta, merged], every event
-%   The scroll buttons send more than one wheel event per press. A wheel event that
-%   comes less than wheelMergeMs after the last one in the same direction is merged
-%   into it (merged = 1): poll() leaves it out.
+%   The MEG mouse's scroll buttons send 2 wheel events per press: one on press and
+%   one on release (measured 280-410 ms apart, the time the button is held). So the
+%   wheel event after a press, in the same direction and less than wheelMergeMs
+%   later, is its release (merged = 1): poll() leaves it out. The event after that
+%   is a new press again, however soon it comes.
 %   mouse.clear();       % drop all events not read yet
 %   mouse.stop();        % remove the hook (arc_meg_task does this at the end)
 %
@@ -17,37 +19,37 @@ function mouse = arc_mouse_hook(wheelMergeMs)
 %   runs on its own thread: it time-stamps each event when Windows delivers it,
 %   even while MATLAB is busy. It only watches: the mouse works as normal.
 if ~ispc, error('arc_mouse_hook:notWindows', 'arc_mouse_hook is for Windows only.'); end
-if nargin < 1, wheelMergeMs = 150; end
+if nargin < 1, wheelMergeMs = 1000; end
 
 % When the C# code changes, change the version in BOTH the file name and the
-% namespace (ArcMouseV3 -> ArcMouseV4, here and below). MATLAB cannot unload a
+% namespace (ArcMouseV4 -> ArcMouseV5, here and below). MATLAB cannot unload a
 % .NET class, so an old one with the same name would stay in use until restart.
-dllFile = fullfile(tempdir, 'ArcMouseHook_v3.dll');
+dllFile = fullfile(tempdir, 'ArcMouseHook_v4.dll');
 if ~isfile(dllFile)
     arc_build_net(strjoin(csharpSource(), newline), dllFile);
 end
 NET.addAssembly(dllFile);
-ArcMouseV3.Hook.SetWheelMerge(wheelMergeMs / 1000);
-if ~ArcMouseV3.Hook.Start()
-    error('arc_mouse_hook:start', 'Mouse hook did not start: %s', char(ArcMouseV3.Hook.Error()));
+ArcMouseV4.Hook.SetWheelMerge(wheelMergeMs / 1000);
+if ~ArcMouseV4.Hook.Start()
+    error('arc_mouse_hook:start', 'Mouse hook did not start: %s', char(ArcMouseV4.Hook.Error()));
 end
 
 % Offset from the hook's clock (QueryPerformanceCounter) to GetSecs.
 d = zeros(1, 9);
 for i = 1:numel(d)
-    t0 = GetSecs; tHook = ArcMouseV3.Hook.Now(); t1 = GetSecs;
+    t0 = GetSecs; tHook = ArcMouseV4.Hook.Now(); t1 = GetSecs;
     d(i) = (t0 + t1) / 2 - tHook;
 end
 offset = median(d);
 
 mouse.poll = @() pollEvents(offset, false);
 mouse.pollRaw = @() pollEvents(offset, true);
-mouse.clear = @() ArcMouseV3.Hook.Clear();
-mouse.stop = @() ArcMouseV3.Hook.Stop();
+mouse.clear = @() ArcMouseV4.Hook.Clear();
+mouse.stop = @() ArcMouseV4.Hook.Stop();
 end
 
 function ev = pollEvents(offset, raw)
-v = double(ArcMouseV3.Hook.Poll());
+v = double(ArcMouseV4.Hook.Poll());
 ev = reshape(v, 6, [])';
 if ~isempty(ev), ev(:, 2) = ev(:, 2) + offset; end
 if ~raw, ev = ev(ev(:, 6) == 0, 1:4); end
@@ -61,7 +63,7 @@ src = {
 'using System.Diagnostics;'
 'using System.Runtime.InteropServices;'
 'using System.Threading;'
-'namespace ArcMouseV3 {'
+'namespace ArcMouseV4 {'
 'public static class Hook {'
 '  [StructLayout(LayoutKind.Sequential)] struct POINT { public int x; public int y; }'
 '  [StructLayout(LayoutKind.Sequential)] struct MSLLHOOKSTRUCT { public POINT pt; public uint mouseData; public uint flags; public uint time; public IntPtr extra; }'
@@ -80,8 +82,8 @@ src = {
 '  static uint threadId;'
 '  static Thread thread;'
 '  static string error = "";'
-'  static double wheelMerge = 0.15;'
-'  static double[] lastWheel = { -1e9, -1e9 };'
+'  static double wheelMerge = 1.0;'
+'  static double[] pressT = { -1e9, -1e9 };'   % time of the open press per direction, -1e9 = none
 '  public static void SetWheelMerge(double seconds) { wheelMerge = seconds; }'
 '  public static double Now() { return (double)Stopwatch.GetTimestamp() / Stopwatch.Frequency; }'
 '  public static string Error() { return error; }'
@@ -95,8 +97,9 @@ src = {
 '        int button = msg == 0x0201 ? 1 : msg == 0x0204 ? 2 : (delta > 0 ? 3 : 4);'
 '        int merged = 0;'
 '        if (button >= 3) {'
-'          if (t - lastWheel[button - 3] < wheelMerge) merged = 1;'
-'          lastWheel[button - 3] = t;'   % a long burst stays one press
+'          int d = button - 3;'
+'          if (t - pressT[d] < wheelMerge) { merged = 1; pressT[d] = -1e9; }'   % the release of the open press
+'          else pressT[d] = t;'   % a new press
 '        }'
 '        events.Enqueue(new double[] { button, t, s.pt.x, s.pt.y, delta, merged });'
 '      }'

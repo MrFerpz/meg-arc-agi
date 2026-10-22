@@ -1,10 +1,10 @@
 function test_mouse(seconds, wheelMergeMs)
 % TEST_MOUSE  Print each mouse button event for some seconds (default 20). Windows only.
 %   Press left, right, wheel up and wheel down. Each press must give one PRESS line.
-%   Extra wheel events of the same press show as "merged" lines, with the time
-%   since the last event. wheelMergeMs: see arc_mouse_hook (default 150).
+%   The release event of a scroll-button press shows as a "merged" line, with the
+%   time since the last event. wheelMergeMs: see arc_mouse_hook (default 1000).
 if nargin < 1, seconds = 20; end
-if nargin < 2, wheelMergeMs = 150; end
+if nargin < 2, wheelMergeMs = 1000; end
 arc_setup_ptb();
 mouse = arc_mouse_hook(wheelMergeMs);
 cleaner = onCleanup(@() mouse.stop());
