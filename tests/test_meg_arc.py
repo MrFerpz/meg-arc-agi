@@ -6,7 +6,7 @@ from arcengine import GameAction, GameState
 from meg_arc import codes
 from meg_arc.display import pos_to_cell
 from meg_arc.eventlog import EventLog
-from meg_arc.game import GameRunner, frame_to_rgb, make_arcade
+from meg_arc.game import LIFE_COUNTERS, GameRunner, frame_to_rgb, make_arcade
 from meg_arc.triggers import TriggerSender
 
 
@@ -26,7 +26,8 @@ def test_codes_unique_and_8bit():
     all_codes = (
         list(codes.INPUT.values())
         + list(codes.RESPONSE_ONSET.values())
-        + [codes.ANIMATION_END, codes.LEVEL_COMPLETE, codes.GAME_OVER, codes.GAME_WIN,
+        + [codes.ANIMATION_END, codes.LEVEL_COMPLETE, codes.LEVEL_START, codes.GAME_OVER,
+           codes.LIFE_LOST, codes.GAME_WIN,
            codes.INPUT_IGNORED, codes.GAME_END, codes.SESSION_START, codes.SESSION_END,
            codes.REST_START, codes.REST_END, codes.game_start(1), codes.game_start(25)]
     )
@@ -75,15 +76,19 @@ def test_runner_codes_on_level_complete_and_reset(arcade):
     runner = GameRunner(arcade, "vc33", save_recording=False)
     resp = runner.apply(GameAction.RESET)
     assert resp.onset_codes[0] == codes.RESPONSE_ONSET[GameAction.RESET]
+    assert codes.LEVEL_START in resp.end_codes
     seen = set()
     for y in range(64):
         for x in range(64):
             if runner.last.state is GameState.GAME_OVER:
-                runner.apply(GameAction.RESET)
+                assert codes.LEVEL_START in runner.apply(GameAction.RESET).end_codes
             r = runner.apply(GameAction.ACTION6, {"x": x, "y": y})
             assert r.onset_codes[0] == 16
             seen.update(r.onset_codes)
-    assert {codes.LEVEL_COMPLETE, codes.GAME_OVER} <= seen
+            # vc33 has one life: LIFE_LOST comes with GAME_OVER and never alone
+            assert (codes.LIFE_LOST in r.onset_codes) == (codes.GAME_OVER in r.onset_codes)
+            assert (codes.LEVEL_START in r.end_codes) == (codes.LEVEL_COMPLETE in r.onset_codes)
+    assert {codes.LEVEL_COMPLETE, codes.GAME_OVER, codes.LIFE_LOST} <= seen
     assert runner.is_allowed(GameAction.RESET)
     assert not runner.is_allowed(GameAction.ACTION1)
 
@@ -92,7 +97,27 @@ def test_animation_end_code(arcade):
     runner = GameRunner(arcade, "ls20", save_recording=False)
     for action in [GameAction.ACTION1, GameAction.ACTION2, GameAction.ACTION3, GameAction.ACTION4] * 30:
         r = runner.apply(action)
-        assert (r.end_code == codes.ANIMATION_END) == (len(r.frames) > 1)
+        assert (codes.ANIMATION_END in r.end_codes) == (len(r.frames) > 1)
+
+
+def test_ls20_loses_three_lives(arcade):
+    runner = GameRunner(arcade, "ls20", save_recording=False)
+    assert runner.lives_value() == 3
+    lost = []
+    for i in range(400):
+        if runner.last.state is GameState.GAME_OVER:
+            break
+        r = runner.apply([GameAction.ACTION1, GameAction.ACTION2, GameAction.ACTION3, GameAction.ACTION4][i % 4])
+        if codes.LIFE_LOST in r.onset_codes:
+            lost.append(codes.GAME_OVER in r.onset_codes)
+    assert lost == [False, False, True]  # the third life lost is also GAME_OVER
+    runner.apply(GameAction.RESET)
+    assert runner.lives_value() == 3
+
+
+@pytest.mark.parametrize("game_id", sorted(LIFE_COUNTERS))
+def test_life_counters_exist(arcade, game_id):
+    assert isinstance(GameRunner(arcade, game_id, save_recording=False).lives_value(), int)
 
 
 def test_eventlog(tmp_path):
@@ -120,6 +145,7 @@ def test_bridge_shapes(tmp_path):
     assert r["onset_codes"][0] == 16
     assert Bridge.input_code(0) == 9 and Bridge.input_code(6) == 6
     assert Bridge.codes()["GAME_END"] == codes.GAME_END
+    assert Bridge.codes()["LEVEL_START"] == codes.LEVEL_START and Bridge.codes()["LIFE_LOST"] == codes.LIFE_LOST
 
 
 def test_grid_overlay_matches_web_player():

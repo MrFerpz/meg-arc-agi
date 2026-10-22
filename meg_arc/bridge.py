@@ -31,7 +31,7 @@ def _response_dict(resp: Response) -> dict[str, Any]:
         "frames": np.stack([frame_to_rgb(f) for f in resp.frames]),
         "n_frames": len(resp.frames),
         "onset_codes": np.array(resp.onset_codes, dtype=np.int32),
-        "end_code": resp.end_code or 0,  # 0 = no animation-end code
+        "end_codes": np.array(resp.end_codes, dtype=np.int32),  # send on the last flip
         "state": resp.state.name,
         "levels_completed": resp.levels_completed,
         "win_levels": resp.win_levels,
@@ -67,6 +67,7 @@ class Bridge:
         """All fixed trigger codes, so MATLAB and Python share one code map."""
         return {
             "INPUT_IGNORED": codes.INPUT_IGNORED, "GAME_END": codes.GAME_END,
+            "LEVEL_START": codes.LEVEL_START, "LIFE_LOST": codes.LIFE_LOST,
             "GAME_START_BASE": codes.GAME_START_BASE,
             "SESSION_START": codes.SESSION_START, "SESSION_END": codes.SESSION_END,
             "REST_START": codes.REST_START, "REST_END": codes.REST_END,

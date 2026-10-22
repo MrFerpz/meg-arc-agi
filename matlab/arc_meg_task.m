@@ -1,13 +1,21 @@
 function arc_meg_task(participant, games, opts)
 % ARC_MEG_TASK  Play ARC-AGI-3 games in Psychtoolbox and send MEG triggers.
 %
-%   arc_meg_task('P01', {'ls20', 'tr87', 'g50t', 'wa30'})
+%   arc_meg_task('P01', {'ls20', 'tr87', 'vc33'}, triggerMode='inpout')
 %   arc_meg_task('TEST', {'ls20'}, windowed=true, triggerMode='none')
 %
 %   MATLAB owns the screen, the input and the triggers. Python
 %   (meg_arc/bridge.py) only runs the game logic. Every trigger that marks a
 %   screen change is sent right after Screen('Flip') returns. A photodiode
 %   square in a screen corner is white on those frames.
+%
+%   Mouse (4 buttons; on Windows read by arc_mouse_hook.m):
+%     arrow games (no ACTION6): wheel up = ACTION1 up, wheel down = ACTION2 down,
+%                               left click = ACTION3 left, right click = ACTION4 right
+%     click games (ACTION6):    left click = ACTION6 at the cursor, right click = ACTION7 undo,
+%                               wheel up = ACTION1, wheel down = ACTION2
+%   Games that fit 4 buttons: ls20 tr87 tu93 (arrow), ft09 lp85 r11l s5i5 tn36 vc33 su15 (click).
+%   The keyboard keys still work (operator and tests).
 %
 %   Needs: MATLAB R2024b or newer (Python 3.12 support), Psychtoolbox 3,
 %   and the repo's Python environment (uv sync). See docs/05-psychtoolbox.md.
@@ -22,8 +30,8 @@ arguments
     opts.repo (1,:) char = fileparts(fileparts(mfilename('fullpath')))
     opts.minutesPerGame (1,1) double = 10
     opts.restSeconds (1,1) double = 30
-    opts.triggerMode (1,:) char {mustBeMember(opts.triggerMode, {'none', 'io64', 'serial'})} = 'none'
-    opts.triggerAddress (1,:) char = '378'   % hex LPT address for io64, or 'COM3' for serial
+    opts.triggerMode (1,:) char {mustBeMember(opts.triggerMode, {'none', 'inpout', 'io64', 'serial'})} = 'none'
+    opts.triggerAddress (1,:) char = ''   % hex LPT address ('' = find it for inpout, 378 for io64), or 'COM3' for serial
     opts.pulseMs (1,1) double = 10
     opts.gapMs (1,1) double = 5
     opts.eyelink (1,1) logical = false
@@ -33,6 +41,7 @@ arguments
     opts.photodiodePx (1,1) double = 60
     opts.useMouse (1,1) logical = true
     opts.pythonMode (1,:) char {mustBeMember(opts.pythonMode, {'InProcess', 'OutOfProcess'})} = 'InProcess'
+    opts.ptbDir (1,:) char = ''   % empty = repo/Psychtoolbox, else ../Psychtoolbox
 end
 
 % ---- output folder and log -------------------------------------------------
@@ -48,6 +57,9 @@ bridgeModule = arc_setup_python(opts.repo, opts.pythonMode);
 bridge = bridgeModule.Bridge(fullfile(opts.repo, 'environment_files'), fullfile(outDir, 'arc_recordings'));
 C = structfun(@double, struct(bridgeModule.Bridge.codes()), 'UniformOutput', false);
 
+% ---- Psychtoolbox on the path ----------------------------------------------
+arc_setup_ptb(opts.ptbDir);
+
 % ---- trigger output --------------------------------------------------------
 pulseS = opts.pulseMs / 1000;
 gapS = opts.gapMs / 1000;
@@ -55,10 +67,16 @@ lastLow = -Inf;
 switch opts.triggerMode
     case 'none'
         writeTrigger = @(v) [];
+    case 'inpout'
+        % inpoutx64.dll, same method as testStimCodesWindows.m (works on the stimulus PC).
+        lptAddr = [];
+        if ~isempty(opts.triggerAddress), lptAddr = hex2dec(opts.triggerAddress); end
+        writeTrigger = arc_inpout(lptAddr);
     case 'io64'
         % io64 MEX (common on Windows). Ask the facility for their function.
         ioObj = io64;
         assert(io64(ioObj) == 0, 'io64 driver did not start');
+        if isempty(opts.triggerAddress), opts.triggerAddress = '378'; end
         lptAddr = hex2dec(opts.triggerAddress);
         writeTrigger = @(v) io64(ioObj, lptAddr, v);
     case 'serial'
@@ -76,6 +94,13 @@ keyCodes = cellfun(@KbName, keyNames);
 escCode = KbName('ESCAPE');
 keyList = zeros(1, 256);
 keyList([keyCodes, escCode]) = 1;
+
+% ---- mouse buttons -> actions, per game type (see the help text above) ---
+% Columns: left click, right click, wheel up, wheel down.
+mouseMapArrow = [3, 4, 1, 2];
+mouseMapClick = [6, 7, 1, 2];
+mouseNames = {'left', 'right', 'wheel_up', 'wheel_down'};
+mouse = [];     % Windows mouse hook, set below if used
 
 el = [];        % EyeLink handle, set below if used
 prevTex = [];   % last frame texture, closed after the next frame is drawn
@@ -111,6 +136,7 @@ try
     KbQueueCreate([], keyList);
     KbQueueStart;
     if ~opts.useMouse, HideCursor(win); end
+    if opts.useMouse && ispc, mouse = arc_mouse_hook(); end
 
     % ---- EyeLink (optional) --------------------------------------------
     if opts.eyelink
@@ -149,11 +175,14 @@ end
         holdFlips = max(1, round((1 / fps) / ifi));
         frames = uint8(s.frames);
         levelStr = char(bridgeModule.Bridge.level_text(int32(0), s.win_levels));
+        if any(double(s.available_actions) == 6), mouseMap = mouseMapClick; else, mouseMap = mouseMapArrow; end
         drawFrame(squeeze(frames(1, :, :, :)), true, levelStr);
         Screen('Flip', win);
-        sendTrigger(C.GAME_START_BASE + number, ['game_start ' id]);
-        KbQueueFlush;
+        sendTrigger(C.GAME_START_BASE + number, ['trial_start ' id]);
+        sendTrigger(C.LEVEL_START, 'level_start');
         mouseWasDown = false;
+        mousePending = zeros(0, 4);   % mouse events read but not used yet
+        flushInput();
         state = string(s.state); levels = double(s.levels_completed);
         limit = GetSecs + opts.minutesPerGame * 60;
 
@@ -177,13 +206,13 @@ end
             frames = uint8(r.frames);
             n = double(r.n_frames);
             onsetCodes = double(r.onset_codes);
-            endCode = double(r.end_code);
+            endCodes = double(r.end_codes);
             state = string(r.state); levels = double(r.levels_completed);
             levelStr = char(bridgeModule.Bridge.level_text(r.levels_completed, r.win_levels));
 
             vbl = 0;
             for i = 1:n
-                drawFrame(squeeze(frames(i, :, :, :)), i == 1 || (i == n && endCode > 0), levelStr);
+                drawFrame(squeeze(frames(i, :, :, :)), i == 1 || (i == n && ~isempty(endCodes)), levelStr);
                 if i == 1
                     vbl = Screen('Flip', win);
                 else
@@ -192,13 +221,13 @@ end
                 if i == 1
                     for c = onsetCodes, sendTrigger(c, sprintf('frame 1/%d', n)); end
                 end
-                if i == n && endCode > 0
-                    sendTrigger(endCode, sprintf('frame %d/%d', n, n));
+                if i == n
+                    for c = endCodes, sendTrigger(c, sprintf('frame %d/%d', n, n)); end
                 end
             end
             logEvent(vbl, 'response_done', [], '', action, x, y, n, char(state), levels);
             % Inputs made during an animation are dropped (one input = one response).
-            KbQueueFlush;
+            flushInput();
         end
 
         sendTrigger(C.GAME_END, ['game_end ' id]);
@@ -218,20 +247,38 @@ end
                     return
                 end
             end
-            if opts.useMouse
-                [mx, my, buttons] = GetMouse(win);
-                down = buttons(1);
-                if down && ~mouseWasDown
-                    tIn = GetSecs;
-                    action = 6; src = 'mouse';
-                    col = floor((mx - dst(1)) / opts.gridPx * 64);
-                    row = floor((my - dst(2)) / opts.gridPx * 64);
-                    if col >= 0 && col < 64 && row >= 0 && row < 64
-                        x = col; y = row;
-                    end
+            if ~opts.useMouse, return; end
+            button = 0;
+            if ~isempty(mouse)
+                mousePending = [mousePending; mouse.poll()];
+                if ~isempty(mousePending)
+                    button = mousePending(1, 1); tIn = mousePending(1, 2);
+                    mousePending(1, :) = [];
                 end
-                mouseWasDown = down;
+            else
+                % Not Windows: left button only, by polling (for tests on a Mac).
+                [~, ~, buttons] = GetMouse(win);
+                if buttons(1) && ~mouseWasDown, button = 1; tIn = GetSecs; end
+                mouseWasDown = buttons(1);
             end
+            if button == 0, return; end
+            action = mouseMap(button);
+            src = ['mouse:' mouseNames{button}];
+            if action == 6
+                % Cursor position now (at most a few ms after the click).
+                [mx, my] = GetMouse(win);
+                col = floor((mx - dst(1)) / opts.gridPx * 64);
+                row = floor((my - dst(2)) / opts.gridPx * 64);
+                if col >= 0 && col < 64 && row >= 0 && row < 64
+                    x = col; y = row;
+                end
+            end
+        end
+
+        function flushInput()
+            KbQueueFlush;
+            mousePending = zeros(0, 4);
+            if ~isempty(mouse), mouse.clear(); end
         end
     end
 
@@ -312,6 +359,9 @@ end
             end
         end
         fclose(logFid);
+        if ~isempty(mouse)
+            try mouse.stop(); catch, end
+        end
         try KbQueueRelease; catch, end
         ShowCursor;
         sca;

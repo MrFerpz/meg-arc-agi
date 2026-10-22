@@ -5,4 +5,4 @@ recordings/
 vendor/
 .DS_Store
 .pytest_cache/
-psychtoolbox/
+[Pp]sychtoolbox/

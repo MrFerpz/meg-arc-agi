@@ -216,8 +216,8 @@ class Task:
         for i, frame in enumerate(resp.frames):
             first, last = i == 0, i == n - 1
             send = list(resp.onset_codes) if first else []
-            if last and resp.end_code is not None:
-                send.append(resp.end_code)
+            if last:
+                send.extend(resp.end_codes)
             self.draw_frame(frame, diode_on=bool(send), hud=hud)
             self.flip_with_codes(send, f"{resp.action.name} frame {i + 1}/{n}",
                                  frame_index=i, n_frames=n, state=resp.state.name,
@@ -234,7 +234,7 @@ class Task:
 
         hud = level_text(0, runner.last.win_levels)
         self.draw_frame(runner.current_frame, diode_on=True, hud=hud)
-        self.flip_with_codes([codes.game_start(game_number)], f"game_start {game_id}")
+        self.flip_with_codes([codes.game_start(game_number), codes.LEVEL_START], f"game_start {game_id}")
         self.kb.clearEvents()
 
         while self.core.getTime() < limit:

@@ -43,11 +43,13 @@
 | 19 | Response onset for RESET | Same |
 | 20 | Animation end (multi-frame responses only) | On the flip of the last frame |
 | 30 | Level complete | On the first response frame (after its 11-19 code) |
-| 40 | Game over | Same |
+| 31 | Level start: the first frame of a level is on screen (game start, next level, RESET) | On the flip of that frame (the last frame of the response) |
+| 40 | Game over | On the first response frame |
+| 41 | Life lost: the game's life counter dropped (ls20: 3 lives, r11l: 5 hits), or game over in a game with one life | On the first response frame (before 40) |
 | 50 | Game win (all levels) | Same |
 | 60 | Input ignored (action not available, or click off the grid) | When the input is read |
 | 99 | Game end (time limit or win) | At the end of the game |
-| 101-249 | Game start, game number N in the session = 100 + N | On the flip of the first frame |
+| 101-249 | Trial start = game start, game number N in the session = 100 + N (then 31) | On the flip of the first frame |
 | 250 / 251 | Session start / end | |
 | 252 / 253 | Rest start / end | On the flip of the message |
 

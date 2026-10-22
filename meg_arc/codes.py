@@ -24,12 +24,14 @@ RESPONSE_ONSET = {action: code + 10 for action, code in INPUT.items()}
 
 ANIMATION_END = 20  # last frame of a multi-frame response is on screen
 LEVEL_COMPLETE = 30
+LEVEL_START = 31  # first frame of a level is on screen (game start, next level, RESET)
 GAME_OVER = 40
+LIFE_LOST = 41  # a game's life counter dropped, or GAME_OVER in a game with one life
 GAME_WIN = 50
 INPUT_IGNORED = 60  # input not in available_actions, or click off the grid
 
 GAME_END = 99
-GAME_START_BASE = 100  # GAME_START_BASE + game number in the session (1-based)
+GAME_START_BASE = 100  # trial start: GAME_START_BASE + game number in the session (1-based)
 
 SESSION_START = 250
 SESSION_END = 251

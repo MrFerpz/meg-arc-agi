@@ -8,6 +8,8 @@ pe = pyenv;
 if pe.Status == "NotLoaded"
     pyExe = fullfile(repo, '.venv', 'Scripts', 'python.exe');   % Windows
     if ~isfile(pyExe), pyExe = fullfile(repo, '.venv', 'bin', 'python'); end   % macOS / Linux
+    assert(isfile(pyExe), 'arc_setup_python:noVenv', ...
+        'No Python in %s. Run "uv sync --python 3.12" in that folder first (docs/06, 6.3).', fullfile(repo, '.venv'));
     pyenv('Version', pyExe, 'ExecutionMode', mode);
 end
 if count(py.sys.path, repo) == 0

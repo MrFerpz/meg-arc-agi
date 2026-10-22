@@ -56,17 +56,23 @@ If `pyenv` fails to load the `.venv` Python: install Python 3.12 from python.org
 
 ## 6.5 Run the task
 
+`arc_meg_task` puts Psychtoolbox on the path by itself (`arc_setup_ptb.m`). It looks in `Psychtoolbox\` inside the repo folder, then in `..\Psychtoolbox` next to it. For another place, add `ptbDir='C:\path\to\Psychtoolbox'`.
+
 Test run, small window, no triggers:
 
 ```matlab
 arc_meg_task('TEST', {'ls20'}, windowed=true, triggerMode='none')
 ```
 
-Full screen with triggers (example, change it to the facility's hardware):
+Full screen with triggers through `inpoutx64.dll` (the same method as `testStimCodesWindows.m`):
 
 ```matlab
-arc_meg_task('P01', {'ls20', 'tr87', 'g50t', 'wa30'}, triggerMode='io64', triggerAddress='378', eyelink=true)
+arc_meg_task('P01', {'ls20', 'tr87', 'vc33'}, triggerMode='inpout', eyelink=true)
 ```
+
+- `triggerMode='inpout'` finds the parallel port address itself. To set it, add `triggerAddress='E050'` (hex, no `0x`).
+- The 4-button mouse: in arrow games (ls20, tr87, tu93) wheel up = up, wheel down = down, left click = left, right click = right. In click games (ft09, lp85, r11l, s5i5, tn36, vc33, su15) left click = click at the cursor, right click = undo. Other games need more than 4 buttons.
+- `arc_mouse_hook.m` reads the wheel and the clicks on Windows. Psychtoolbox cannot read the wheel on Windows.
 
 - Esc quits. Space starts the session and each next game.
 - The output goes to `C:\meg-arc-agi\data\<participant>_<date-time>\`: `events.tsv`, the ARC game recordings, and the EyeLink `.edf` file.
