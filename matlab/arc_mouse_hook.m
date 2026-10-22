@@ -19,34 +19,35 @@ function mouse = arc_mouse_hook(wheelMergeMs)
 if ~ispc, error('arc_mouse_hook:notWindows', 'arc_mouse_hook is for Windows only.'); end
 if nargin < 1, wheelMergeMs = 150; end
 
-% Change the version in the file name when the C# code changes: MATLAB cannot
-% reload a .NET assembly in one session: restart MATLAB after a change.
-dllFile = fullfile(tempdir, 'ArcMouseHook_v2.dll');
+% When the C# code changes, change the version in BOTH the file name and the
+% namespace (ArcMouseV3 -> ArcMouseV4, here and below). MATLAB cannot unload a
+% .NET class, so an old one with the same name would stay in use until restart.
+dllFile = fullfile(tempdir, 'ArcMouseHook_v3.dll');
 if ~isfile(dllFile)
     arc_build_net(strjoin(csharpSource(), newline), dllFile);
 end
 NET.addAssembly(dllFile);
-ArcMouse.Hook.SetWheelMerge(wheelMergeMs / 1000);
-if ~ArcMouse.Hook.Start()
-    error('arc_mouse_hook:start', 'Mouse hook did not start: %s', char(ArcMouse.Hook.Error()));
+ArcMouseV3.Hook.SetWheelMerge(wheelMergeMs / 1000);
+if ~ArcMouseV3.Hook.Start()
+    error('arc_mouse_hook:start', 'Mouse hook did not start: %s', char(ArcMouseV3.Hook.Error()));
 end
 
 % Offset from the hook's clock (QueryPerformanceCounter) to GetSecs.
 d = zeros(1, 9);
 for i = 1:numel(d)
-    t0 = GetSecs; tHook = ArcMouse.Hook.Now(); t1 = GetSecs;
+    t0 = GetSecs; tHook = ArcMouseV3.Hook.Now(); t1 = GetSecs;
     d(i) = (t0 + t1) / 2 - tHook;
 end
 offset = median(d);
 
 mouse.poll = @() pollEvents(offset, false);
 mouse.pollRaw = @() pollEvents(offset, true);
-mouse.clear = @() ArcMouse.Hook.Clear();
-mouse.stop = @() ArcMouse.Hook.Stop();
+mouse.clear = @() ArcMouseV3.Hook.Clear();
+mouse.stop = @() ArcMouseV3.Hook.Stop();
 end
 
 function ev = pollEvents(offset, raw)
-v = double(ArcMouse.Hook.Poll());
+v = double(ArcMouseV3.Hook.Poll());
 ev = reshape(v, 6, [])';
 if ~isempty(ev), ev(:, 2) = ev(:, 2) + offset; end
 if ~raw, ev = ev(ev(:, 6) == 0, 1:4); end
@@ -60,7 +61,7 @@ src = {
 'using System.Diagnostics;'
 'using System.Runtime.InteropServices;'
 'using System.Threading;'
-'namespace ArcMouse {'
+'namespace ArcMouseV3 {'
 'public static class Hook {'
 '  [StructLayout(LayoutKind.Sequential)] struct POINT { public int x; public int y; }'
 '  [StructLayout(LayoutKind.Sequential)] struct MSLLHOOKSTRUCT { public POINT pt; public uint mouseData; public uint flags; public uint time; public IntPtr extra; }'
