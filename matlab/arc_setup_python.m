@@ -15,5 +15,10 @@ end
 if count(py.sys.path, repo) == 0
     insert(py.sys.path, int32(0), repo);
 end
+% Reload our modules (in import order): Python keeps the first loaded copy for the
+% whole MATLAB session, so without this a git pull needs a MATLAB restart.
+for name = {'meg_arc.codes', 'meg_arc.display', 'meg_arc.game', 'meg_arc.bridge'}
+    py.importlib.reload(py.importlib.import_module(name{1}));
+end
 bridgeModule = py.importlib.import_module('meg_arc.bridge');
 end
