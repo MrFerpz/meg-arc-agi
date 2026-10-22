@@ -1,9 +1,13 @@
-function mouse = arc_mouse_hook()
+function mouse = arc_mouse_hook(wheelMergeMs)
 % ARC_MOUSE_HOOK  Read left click, right click, wheel up and wheel down on Windows.
-%   mouse = arc_mouse_hook();
+%   mouse = arc_mouse_hook();      % or arc_mouse_hook(wheelMergeMs), default 150
 %   ev = mouse.poll();   % n x 4: [button, t, x, y], oldest first
 %                        % button 1 = left, 2 = right, 3 = wheel up, 4 = wheel down
 %                        % t = GetSecs time of the event, x y = screen pixels
+%   ev = mouse.pollRaw();  % n x 6: [button, t, x, y, wheelDelta, merged], every event
+%   The scroll buttons send more than one wheel event per press. A wheel event that
+%   comes less than wheelMergeMs after the last one in the same direction is merged
+%   into it (merged = 1): poll() leaves it out.
 %   mouse.clear();       % drop all events not read yet
 %   mouse.stop();        % remove the hook (arc_meg_task does this at the end)
 %
@@ -13,14 +17,16 @@ function mouse = arc_mouse_hook()
 %   runs on its own thread: it time-stamps each event when Windows delivers it,
 %   even while MATLAB is busy. It only watches: the mouse works as normal.
 if ~ispc, error('arc_mouse_hook:notWindows', 'arc_mouse_hook is for Windows only.'); end
+if nargin < 1, wheelMergeMs = 150; end
 
 % Change the version in the file name when the C# code changes: MATLAB cannot
-% reload a .NET assembly with the same name in one session.
-dllFile = fullfile(tempdir, 'ArcMouseHook_v1.dll');
+% reload a .NET assembly in one session: restart MATLAB after a change.
+dllFile = fullfile(tempdir, 'ArcMouseHook_v2.dll');
 if ~isfile(dllFile)
     arc_build_net(strjoin(csharpSource(), newline), dllFile);
 end
 NET.addAssembly(dllFile);
+ArcMouse.Hook.SetWheelMerge(wheelMergeMs / 1000);
 if ~ArcMouse.Hook.Start()
     error('arc_mouse_hook:start', 'Mouse hook did not start: %s', char(ArcMouse.Hook.Error()));
 end
@@ -33,15 +39,17 @@ for i = 1:numel(d)
 end
 offset = median(d);
 
-mouse.poll = @() pollEvents(offset);
+mouse.poll = @() pollEvents(offset, false);
+mouse.pollRaw = @() pollEvents(offset, true);
 mouse.clear = @() ArcMouse.Hook.Clear();
 mouse.stop = @() ArcMouse.Hook.Stop();
 end
 
-function ev = pollEvents(offset)
+function ev = pollEvents(offset, raw)
 v = double(ArcMouse.Hook.Poll());
-ev = reshape(v, 4, [])';
+ev = reshape(v, 6, [])';
 if ~isempty(ev), ev(:, 2) = ev(:, 2) + offset; end
+if ~raw, ev = ev(ev(:, 6) == 0, 1:4); end
 end
 
 function src = csharpSource()
@@ -71,6 +79,9 @@ src = {
 '  static uint threadId;'
 '  static Thread thread;'
 '  static string error = "";'
+'  static double wheelMerge = 0.15;'
+'  static double[] lastWheel = { -1e9, -1e9 };'
+'  public static void SetWheelMerge(double seconds) { wheelMerge = seconds; }'
 '  public static double Now() { return (double)Stopwatch.GetTimestamp() / Stopwatch.Frequency; }'
 '  public static string Error() { return error; }'
 '  static IntPtr Callback(int nCode, IntPtr wParam, IntPtr lParam) {'
@@ -79,8 +90,14 @@ src = {
 '      int msg = wParam.ToInt32();'
 '      if (msg == 0x0201 || msg == 0x0204 || msg == 0x020A) {'   % WM_LBUTTONDOWN, WM_RBUTTONDOWN, WM_MOUSEWHEEL
 '        MSLLHOOKSTRUCT s = (MSLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(MSLLHOOKSTRUCT));'
-'        int button = msg == 0x0201 ? 1 : msg == 0x0204 ? 2 : ((short)(s.mouseData >> 16) > 0 ? 3 : 4);'
-'        events.Enqueue(new double[] { button, t, s.pt.x, s.pt.y });'
+'        int delta = msg == 0x020A ? (short)(s.mouseData >> 16) : 0;'
+'        int button = msg == 0x0201 ? 1 : msg == 0x0204 ? 2 : (delta > 0 ? 3 : 4);'
+'        int merged = 0;'
+'        if (button >= 3) {'
+'          if (t - lastWheel[button - 3] < wheelMerge) merged = 1;'
+'          lastWheel[button - 3] = t;'   % a long burst stays one press
+'        }'
+'        events.Enqueue(new double[] { button, t, s.pt.x, s.pt.y, delta, merged });'
 '      }'
 '    }'
 '    return CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);'
