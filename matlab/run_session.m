@@ -6,5 +6,8 @@ games       = {'ls20', 'tr87', 'vc33'};
 eyelink     = true;
 triggerMode = 'inpout';               % 'none' to test without the trigger cable
 windowed    = false;                  % true = small window, for a desk test
+minutesPerGame = 10;                  % a game ends at this limit or when all its levels are won
+restSeconds    = 30;                  % rest screen between games, then SPACE starts the next one
 
-arc_meg_task(participant, games, triggerMode=triggerMode, eyelink=eyelink, windowed=windowed)
+arc_meg_task(participant, games, triggerMode=triggerMode, eyelink=eyelink, windowed=windowed, ...
+    minutesPerGame=minutesPerGame, restSeconds=restSeconds)
