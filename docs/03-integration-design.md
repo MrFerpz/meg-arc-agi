@@ -51,6 +51,8 @@
 | 70 | Resting state, eyes open, before the games | On the flip of the fixation cross |
 | 71 / 72 | Resting state after the games: eyes open / eyes closed | Same |
 | 79 | Resting state end | On the flip of the end screen |
+| 80 | Video start: the first video frame is on screen | On the flip of that frame |
+| 89 | Video end | On the flip of the end screen |
 | 99 | Game end (time limit or win) | At the end of the game |
 | 101-249 | Trial start = game start, game number N in the session = 100 + N (then 31) | On the flip of the first frame |
 | 250 / 251 | Session start / end | |

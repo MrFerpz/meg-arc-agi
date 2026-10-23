@@ -6,3 +6,4 @@ vendor/
 .DS_Store
 .pytest_cache/
 [Pp]sychtoolbox/
+*.mp4

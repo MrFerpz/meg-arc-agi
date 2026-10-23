@@ -12,8 +12,10 @@ eyesOpenPreSeconds    = 120;          % resting state: eyes open before the game
 eyesOpenPostSeconds   = 60;           % resting state: eyes open after the games (0 = skip)
 eyesClosedPostSeconds = 60;           % resting state: eyes closed after the games (0 = skip)
 restingInstructionSeconds = 10;       % resting-state instructions show this long, then the cross starts by itself
+% Video played after the eyes-closed part ('' = no video). robots.mp4 is in the repo folder.
+videoFile = fullfile(fileparts(fileparts(mfilename('fullpath'))), 'robots.mp4');
 
 arc_meg_task(participant, games, triggerMode=triggerMode, eyelink=eyelink, windowed=windowed, ...
     minutesPerGame=minutesPerGame, restSeconds=restSeconds, eyesOpenPreSeconds=eyesOpenPreSeconds, ...
     eyesOpenPostSeconds=eyesOpenPostSeconds, eyesClosedPostSeconds=eyesClosedPostSeconds, ...
-    restingInstructionSeconds=restingInstructionSeconds)
+    restingInstructionSeconds=restingInstructionSeconds, videoFile=videoFile)

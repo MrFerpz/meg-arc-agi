@@ -36,6 +36,10 @@ RESTING_EYES_OPEN_POST = 71  # after the games
 RESTING_EYES_CLOSED_POST = 72  # after the games
 RESTING_END = 79
 
+# Video after the resting state.
+VIDEO_START = 80  # first video frame is on screen
+VIDEO_END = 89  # end screen after the last frame is on screen
+
 GAME_END = 99
 GAME_START_BASE = 100  # trial start: GAME_START_BASE + game number in the session (1-based)
 

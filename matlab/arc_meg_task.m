@@ -34,6 +34,7 @@ arguments
     opts.eyesOpenPostSeconds (1,1) double = 60    % resting state after the games (0 = skip)
     opts.eyesClosedPostSeconds (1,1) double = 60
     opts.restingInstructionSeconds (1,1) double = 10   % instructions on screen, then the resting state starts by itself
+    opts.videoFile (1,:) char = ''   % video played after the resting state ('' = none). Needs GStreamer on Windows.
     opts.triggerMode (1,:) char {mustBeMember(opts.triggerMode, {'none', 'inpout', 'io64', 'serial'})} = 'none'
     opts.triggerAddress (1,:) char = ''   % hex LPT address ('' = find it for inpout, 378 for io64), or 'COM3' for serial
     opts.pulseMs (1,1) double = 10
@@ -108,6 +109,7 @@ mouseNames = {'left', 'right', 'wheel_up', 'wheel_down'};
 mouse = [];     % Windows mouse hook, set below if used
 
 el = [];        % EyeLink handle, set below if used
+movie = [];     % Psychtoolbox movie handle, set below if opts.videoFile is set
 prevTex = [];   % last frame texture, closed after the next frame is drawn
 edfName = '';
 try
@@ -137,6 +139,13 @@ try
         warning('pulse + gap (%.1f ms) is longer than one frame (%.1f ms)', opts.pulseMs + opts.gapMs, ifi * 1000);
     end
     logEvent(GetSecs, 'display', [], sprintf('ifi_ms=%.4f size=%dx%d', ifi * 1000, winRect(3), winRect(4)));
+    if ~isempty(opts.videoFile)
+        % Opened now, so a missing file or a missing GStreamer stops the task before the session.
+        if ~isfile(opts.videoFile), error('Video file not found: %s', opts.videoFile); end
+        [movie, movieSecs, movieFps, movieW, movieH] = Screen('OpenMovie', win, opts.videoFile);
+        logEvent(GetSecs, 'video_file', [], sprintf('file=%s duration_s=%.3f fps=%.3f size=%dx%d', ...
+            opts.videoFile, movieSecs, movieFps, movieW, movieH));
+    end
 
     KbQueueCreate([], keyList);
     KbQueueStart;
@@ -179,6 +188,9 @@ try
         % The participant cannot see the end screen: the operator tells them to open their eyes.
         restingState('When the cross appears, close your eyes and relax.\n\nKeep them closed until we tell you to open them.', ...
             C.RESTING_EYES_CLOSED_POST, 'eyes_closed_post', opts.eyesClosedPostSeconds, 'You can open your eyes.');
+    end
+    if ~isempty(movie)
+        playVideo();
     end
     cleanUp('done');
 catch err
@@ -369,6 +381,36 @@ end
         end
         waitSecsOrEsc(tStart + seconds);
         showMessage(endTxt, C.RESTING_END);
+    end
+
+    function playVideo()
+        % Instructions, then the video, scaled to fit the screen. One 'flip' row per video
+        % frame: pts = the frame's time in the video file (s), so the log says which frame was shown.
+        showMessage('Next: a short video.\n\nWatch it and relax.', 0);
+        waitSecsOrEsc(GetSecs + opts.restingInstructionSeconds);
+        scale = min(winRect(3) / movieW, winRect(4) / movieH);
+        movieRect = CenterRectOnPoint([0 0 movieW * scale, movieH * scale], winRect(3) / 2, winRect(4) / 2);
+        Screen('PlayMovie', movie, 1);
+        KbQueueFlush;
+        frame = 0;
+        while true
+            [tex, pts] = Screen('GetMovieImage', win, movie, 1);
+            if tex <= 0, break; end   % end of the video
+            frame = frame + 1;
+            Screen('DrawTexture', win, tex, [], movieRect);
+            Screen('FillRect', win, double(frame == 1), diodeRect);
+            [vbl, ~, ~, missed] = Screen('Flip', win);
+            Screen('Close', tex);
+            if frame == 1, sendTrigger(C.VIDEO_START, 'video_start'); end
+            logFlip(vbl, missed, sprintf('video frame=%d pts=%.4f', frame, pts), []);
+            [pressed, firstPress] = KbQueueCheck;
+            if pressed && firstPress(escCode) > 0, error('arc:quit', 'Escape pressed'); end
+        end
+        Screen('PlayMovie', movie, 0);
+        Screen('CloseMovie', movie);
+        movie = [];
+        showMessage('The video is over.\n\nWell done.', C.VIDEO_END);
+        if ~isempty(mouse), mouse.clear(); end
     end
 
     function waitSecsOrEsc(tEnd)

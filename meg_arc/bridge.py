@@ -75,6 +75,7 @@ class Bridge:
             "RESTING_EYES_OPEN_POST": codes.RESTING_EYES_OPEN_POST,
             "RESTING_EYES_CLOSED_POST": codes.RESTING_EYES_CLOSED_POST,
             "RESTING_END": codes.RESTING_END,
+            "VIDEO_START": codes.VIDEO_START, "VIDEO_END": codes.VIDEO_END,
         }
 
     @staticmethod
