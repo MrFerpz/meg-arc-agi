@@ -41,6 +41,14 @@ from pathlib import Path
 
 import numpy as np
 
+# Where the EyeLink Developers Kit puts edf2asc on Windows, if it is not on the PATH.
+EDF2ASC_WINDOWS = [
+    r"C:\Program Files (x86)\SR Research\EyeLink\bin\edf2asc.exe",
+    r"C:\Program Files\SR Research\EyeLink\bin\edf2asc.exe",
+    r"C:\Program Files (x86)\SR Research\EyeLink\bin\64\edf2asc.exe",
+    r"C:\Program Files\SR Research\EyeLink\bin\64\edf2asc.exe",
+]
+
 MSG_TRIGGER = re.compile(r"^MSG\s+(\d+(?:\.\d+)?)\s+(?:(-?\d+)\s+)?TRIGGER\s+(\d+)")
 
 
@@ -75,10 +83,11 @@ def find_asc(run: Path, asc: Path | None) -> Path | None:
     edfs = sorted(run.glob("*.edf"))
     if not edfs:
         return None
-    if shutil.which("edf2asc") is None:
+    exe = shutil.which("edf2asc") or next((p for p in EDF2ASC_WINDOWS if Path(p).is_file()), None)
+    if exe is None:
         sys.exit(f"{edfs[0]} needs to be converted to text first. Install the EyeLink Developers Kit "
                  f"(SR Research) and run:  edf2asc {edfs[0]}   then run this script again.")
-    subprocess.run(["edf2asc", "-y", str(edfs[0])], check=False)  # edf2asc exits non-zero on warnings
+    subprocess.run([exe, "-y", str(edfs[0])], check=False)  # edf2asc exits non-zero on warnings
     out = edfs[0].with_suffix(".asc")
     if not out.exists():
         sys.exit(f"edf2asc did not make {out}")
