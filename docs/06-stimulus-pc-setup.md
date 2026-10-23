@@ -58,6 +58,8 @@ If `pyenv` fails to load the `.venv` Python: install Python 3.12 from python.org
 
 `arc_meg_task` puts Psychtoolbox on the path by itself (`arc_setup_ptb.m`). It looks in `Psychtoolbox\` inside the repo folder, then in `..\Psychtoolbox` next to it. For another place, add `ptbDir='C:\path\to\Psychtoolbox'`.
 
+The easy way: open `matlab\run_session.m`, change the settings at the top, and press Run.
+
 Test run, small window, no triggers:
 
 ```matlab
