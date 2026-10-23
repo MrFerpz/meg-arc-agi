@@ -30,6 +30,9 @@ arguments
     opts.repo (1,:) char = fileparts(fileparts(mfilename('fullpath')))
     opts.minutesPerGame (1,1) double = 10
     opts.restSeconds (1,1) double = 30
+    opts.eyesOpenPreSeconds (1,1) double = 120    % resting state before the games (0 = skip)
+    opts.eyesOpenPostSeconds (1,1) double = 60    % resting state after the games (0 = skip)
+    opts.eyesClosedPostSeconds (1,1) double = 60
     opts.triggerMode (1,:) char {mustBeMember(opts.triggerMode, {'none', 'inpout', 'io64', 'serial'})} = 'none'
     opts.triggerAddress (1,:) char = ''   % hex LPT address ('' = find it for inpout, 378 for io64), or 'COM3' for serial
     opts.pulseMs (1,1) double = 10
@@ -153,6 +156,12 @@ try
     showMessage('Waiting for the MEG operator.\n\nPress SPACE to start.', 0);
     waitForSpace();
     sendTrigger(C.SESSION_START, 'session_start');
+    eyesOpenText = 'Keep your eyes open and look at the cross.\n\nRelax and do nothing.';
+    if opts.eyesOpenPreSeconds > 0
+        restingState(eyesOpenText, C.RESTING_EYES_OPEN_PRE, 'eyes_open_pre', opts.eyesOpenPreSeconds, ...
+            'Well done.\n\nThe game starts next.');
+        waitForSpace();
+    end
     for g = 1:numel(games)
         playGame(games{g}, g);
         if g < numel(games)
@@ -161,6 +170,14 @@ try
             showMessage('Press SPACE for the next game.', C.REST_END);
             waitForSpace();
         end
+    end
+    if opts.eyesOpenPostSeconds > 0
+        restingState(eyesOpenText, C.RESTING_EYES_OPEN_POST, 'eyes_open_post', opts.eyesOpenPostSeconds, 'Well done.');
+    end
+    if opts.eyesClosedPostSeconds > 0
+        % The participant cannot see the end screen: the operator tells them to open their eyes.
+        restingState('Close your eyes and relax.\n\nKeep them closed until we tell you to open them.', ...
+            C.RESTING_EYES_CLOSED_POST, 'eyes_closed_post', opts.eyesClosedPostSeconds, 'You can open your eyes.');
     end
     cleanUp('done');
 catch err
@@ -333,6 +350,28 @@ end
         [vbl, ~, ~, missed] = Screen('Flip', win);
         if code > 0, sendTrigger(code, txt(1:min(20, end))); end
         logFlip(vbl, missed, ['message=' txt], []);
+    end
+
+    function restingState(txt, code, label, seconds, endTxt)
+        % Instructions, then SPACE (operator), then a fixation cross for `seconds`.
+        showMessage([txt '\n\nThe operator starts this part.'], 0);
+        waitForSpace();
+        % The photodiode square is white on the first cross frame only.
+        for diodeOn = [true false]
+            Screen('TextSize', win, 60);
+            DrawFormattedText(win, '+', 'center', 'center', 1);
+            Screen('FillRect', win, double(diodeOn), diodeRect);
+            [vbl, ~, ~, missed] = Screen('Flip', win);
+            if diodeOn, sendTrigger(code, label); tStart = vbl; end
+            logFlip(vbl, missed, ['cross ' label], []);
+        end
+        KbQueueFlush;
+        while GetSecs < tStart + seconds
+            [pressed, firstPress] = KbQueueCheck;
+            if pressed && firstPress(escCode) > 0, error('arc:quit', 'Escape pressed'); end
+            WaitSecs(0.005);
+        end
+        showMessage(endTxt, C.RESTING_END);
     end
 
     function logFlip(vbl, missed, note, n)

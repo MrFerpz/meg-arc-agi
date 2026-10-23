@@ -71,6 +71,10 @@ class Bridge:
             "GAME_START_BASE": codes.GAME_START_BASE,
             "SESSION_START": codes.SESSION_START, "SESSION_END": codes.SESSION_END,
             "REST_START": codes.REST_START, "REST_END": codes.REST_END,
+            "RESTING_EYES_OPEN_PRE": codes.RESTING_EYES_OPEN_PRE,
+            "RESTING_EYES_OPEN_POST": codes.RESTING_EYES_OPEN_POST,
+            "RESTING_EYES_CLOSED_POST": codes.RESTING_EYES_CLOSED_POST,
+            "RESTING_END": codes.RESTING_END,
         }
 
     @staticmethod

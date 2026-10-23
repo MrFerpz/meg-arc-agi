@@ -29,7 +29,8 @@ def test_codes_unique_and_8bit():
         + [codes.ANIMATION_END, codes.LEVEL_COMPLETE, codes.LEVEL_START, codes.GAME_OVER,
            codes.LIFE_LOST, codes.GAME_WIN,
            codes.INPUT_IGNORED, codes.GAME_END, codes.SESSION_START, codes.SESSION_END,
-           codes.REST_START, codes.REST_END, codes.game_start(1), codes.game_start(25)]
+           codes.REST_START, codes.REST_END, codes.RESTING_EYES_OPEN_PRE, codes.RESTING_EYES_OPEN_POST,
+           codes.RESTING_EYES_CLOSED_POST, codes.RESTING_END, codes.game_start(1), codes.game_start(25)]
     )
     assert len(all_codes) == len(set(all_codes))
     assert all(1 <= c <= 255 for c in all_codes)

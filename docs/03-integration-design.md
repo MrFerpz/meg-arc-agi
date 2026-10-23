@@ -48,6 +48,9 @@
 | 41 | Life lost: the game's life counter dropped (ls20: 3 lives, r11l: 5 hits), or game over in a game with one life | On the first response frame (before 40) |
 | 50 | Game win (all levels) | Same |
 | 60 | Input ignored (action not available, or click off the grid) | When the input is read |
+| 70 | Resting state, eyes open, before the games | On the flip of the fixation cross |
+| 71 / 72 | Resting state after the games: eyes open / eyes closed | Same |
+| 79 | Resting state end | On the flip of the end screen |
 | 99 | Game end (time limit or win) | At the end of the game |
 | 101-249 | Trial start = game start, game number N in the session = 100 + N (then 31) | On the flip of the first frame |
 | 250 / 251 | Session start / end | |

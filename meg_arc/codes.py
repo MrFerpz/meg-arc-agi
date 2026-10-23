@@ -30,6 +30,12 @@ LIFE_LOST = 41  # a game's life counter dropped, or GAME_OVER in a game with one
 GAME_WIN = 50
 INPUT_IGNORED = 60  # input not in available_actions, or click off the grid
 
+# Resting-state blocks (sent on the flip of the fixation cross, or of the end screen).
+RESTING_EYES_OPEN_PRE = 70  # before the games
+RESTING_EYES_OPEN_POST = 71  # after the games
+RESTING_EYES_CLOSED_POST = 72  # after the games
+RESTING_END = 79
+
 GAME_END = 99
 GAME_START_BASE = 100  # trial start: GAME_START_BASE + game number in the session (1-based)
 
