@@ -77,7 +77,7 @@ arc_meg_task('P01', {'ls20', 'tr87', 'vc33'}, triggerMode='inpout', eyelink=true
 - `arc_mouse_hook.m` reads the wheel and the clicks on Windows. Psychtoolbox cannot read the wheel on Windows.
 - Each scroll-button press sends 2 wheel events: press and release (measured 280-410 ms apart). The task uses the first and logs the second as `wheel_merged`. The release must come within `wheelMergeMs` (default 1000 ms).
 
-- Esc quits. Space starts the session and each next game.
+- Esc quits. Space starts the session. After that, everything runs by itself. The first game starts 5 s after the first resting state ends. The other games start after `restSeconds` of rest (code 252), then 3 s of "Get ready" (code 253).
 - The session order: calibration, then 2 min resting state with eyes open, then the games, then 1 min eyes open and 1 min eyes closed. Each resting part starts by itself: the instructions show for `restingInstructionSeconds` (default 10 s), then the fixation cross comes. Each part shows a fixation cross and sends its own code (70, 71 or 72, then 79 at the end). Set a time to 0 to skip that part.
 - Optional video at the end: set `videoFile` to the full path of a video file. The task plays it after the eyes-closed part, scaled to fit the screen, then the session ends. Code 80 marks the first video frame and 89 the end screen. Each video frame gets a `flip` row, and its `pts` is the frame's time in the video file. The task opens the video before calibration, so a wrong path stops it early. Video playback on Windows needs the GStreamer runtime (see `help GStreamer` in MATLAB).
 - The output goes to `C:\meg-arc-agi\data\<participant>_<date-time>\`: `events.tsv`, the ARC game recordings, and the EyeLink `.edf` file.

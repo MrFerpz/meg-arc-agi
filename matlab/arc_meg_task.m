@@ -167,22 +167,26 @@ try
     waitForSpace();
     sendTrigger(C.SESSION_START, 'session_start');
     eyesOpenText = 'Keep your eyes open and look at the cross.\n\nRelax and do nothing.';
+    % No key press: the first game starts by itself 5 s after this screen.
     if opts.eyesOpenPreSeconds > 0
         restingState(eyesOpenText, C.RESTING_EYES_OPEN_PRE, 'eyes_open_pre', opts.eyesOpenPreSeconds, ...
-            'Well done.\n\nThe game starts next.');
-        waitForSpace();
+            'The game will start in 5 seconds.');
+    else
+        showMessage('The game will start in 5 seconds.', 0);
     end
+    waitSecsOrEsc(GetSecs + 5);
     for g = 1:numel(games)
         playGame(games{g}, g);
         if g < numel(games)
-            showMessage('Rest.', C.REST_START);
-            WaitSecs(opts.restSeconds);
-            showMessage('Press SPACE for the next game.', C.REST_END);
-            waitForSpace();
+            % No key press: the next game starts by itself after the rest.
+            showMessage('Rest.\n\nThe next game starts by itself.', C.REST_START);
+            waitSecsOrEsc(GetSecs + opts.restSeconds);
+            showMessage('Get ready.\n\nThe next game starts now.', C.REST_END);
+            waitSecsOrEsc(GetSecs + 3);
         end
     end
     if opts.eyesOpenPostSeconds > 0
-        restingState(eyesOpenText, C.RESTING_EYES_OPEN_POST, 'eyes_open_post', opts.eyesOpenPostSeconds, 'Well done.');
+        restingState(eyesOpenText, C.RESTING_EYES_OPEN_POST, 'eyes_open_post', opts.eyesOpenPostSeconds, 'This part is over.');
     end
     if opts.eyesClosedPostSeconds > 0
         % The participant cannot see the end screen: the operator tells them to open their eyes.
@@ -409,7 +413,7 @@ end
         Screen('PlayMovie', movie, 0);
         Screen('CloseMovie', movie);
         movie = [];
-        showMessage('The video is over.\n\nWell done.', C.VIDEO_END);
+        showMessage('The video is over.', C.VIDEO_END);
         if ~isempty(mouse), mouse.clear(); end
     end
 

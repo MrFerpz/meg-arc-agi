@@ -7,7 +7,7 @@ eyelink     = true;
 triggerMode = 'inpout';               % 'none' to test without the trigger cable
 windowed    = false;                  % true = small window, for a desk test
 minutesPerGame = 10;                  % a game ends at this limit or when all its levels are won
-restSeconds    = 30;                  % rest screen between games, then SPACE starts the next one
+restSeconds    = 30;                  % rest screen between games, then the next game starts by itself
 eyesOpenPreSeconds    = 120;          % resting state: eyes open before the games (0 = skip)
 eyesOpenPostSeconds   = 60;           % resting state: eyes open after the games (0 = skip)
 eyesClosedPostSeconds = 60;           % resting state: eyes closed after the games (0 = skip)
