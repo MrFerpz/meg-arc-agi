@@ -33,6 +33,7 @@ arguments
     opts.eyesOpenPreSeconds (1,1) double = 120    % resting state before the games (0 = skip)
     opts.eyesOpenPostSeconds (1,1) double = 60    % resting state after the games (0 = skip)
     opts.eyesClosedPostSeconds (1,1) double = 60
+    opts.restingInstructionSeconds (1,1) double = 10   % instructions on screen, then the resting state starts by itself
     opts.triggerMode (1,:) char {mustBeMember(opts.triggerMode, {'none', 'inpout', 'io64', 'serial'})} = 'none'
     opts.triggerAddress (1,:) char = ''   % hex LPT address ('' = find it for inpout, 378 for io64), or 'COM3' for serial
     opts.pulseMs (1,1) double = 10
@@ -176,7 +177,7 @@ try
     end
     if opts.eyesClosedPostSeconds > 0
         % The participant cannot see the end screen: the operator tells them to open their eyes.
-        restingState('Close your eyes and relax.\n\nKeep them closed until we tell you to open them.', ...
+        restingState('When the cross appears, close your eyes and relax.\n\nKeep them closed until we tell you to open them.', ...
             C.RESTING_EYES_CLOSED_POST, 'eyes_closed_post', opts.eyesClosedPostSeconds, 'You can open your eyes.');
     end
     cleanUp('done');
@@ -353,9 +354,10 @@ end
     end
 
     function restingState(txt, code, label, seconds, endTxt)
-        % Instructions, then SPACE (operator), then a fixation cross for `seconds`.
-        showMessage([txt '\n\nThe operator starts this part.'], 0);
-        waitForSpace();
+        % Instructions for restingInstructionSeconds, then a fixation cross for `seconds`.
+        % No key press: the cross comes by itself.
+        showMessage([txt '\n\nThis part starts in a few seconds.'], 0);
+        waitSecsOrEsc(GetSecs + opts.restingInstructionSeconds);
         % The photodiode square is white on the first cross frame only.
         for diodeOn = [true false]
             Screen('TextSize', win, 60);
@@ -365,13 +367,18 @@ end
             if diodeOn, sendTrigger(code, label); tStart = vbl; end
             logFlip(vbl, missed, ['cross ' label], []);
         end
+        waitSecsOrEsc(tStart + seconds);
+        showMessage(endTxt, C.RESTING_END);
+    end
+
+    function waitSecsOrEsc(tEnd)
+        % Wait until GetSecs time tEnd. Esc still quits.
         KbQueueFlush;
-        while GetSecs < tStart + seconds
+        while GetSecs < tEnd
             [pressed, firstPress] = KbQueueCheck;
             if pressed && firstPress(escCode) > 0, error('arc:quit', 'Escape pressed'); end
             WaitSecs(0.005);
         end
-        showMessage(endTxt, C.RESTING_END);
     end
 
     function logFlip(vbl, missed, note, n)

@@ -78,7 +78,7 @@ arc_meg_task('P01', {'ls20', 'tr87', 'vc33'}, triggerMode='inpout', eyelink=true
 - Each scroll-button press sends 2 wheel events: press and release (measured 280-410 ms apart). The task uses the first and logs the second as `wheel_merged`. The release must come within `wheelMergeMs` (default 1000 ms).
 
 - Esc quits. Space starts the session and each next game.
-- The session order: calibration, then 2 min resting state with eyes open, then the games, then 1 min eyes open and 1 min eyes closed. The operator presses Space to start each resting part. Each part shows a fixation cross and sends its own code (70, 71 or 72, then 79 at the end). Set a time to 0 to skip that part.
+- The session order: calibration, then 2 min resting state with eyes open, then the games, then 1 min eyes open and 1 min eyes closed. Each resting part starts by itself: the instructions show for `restingInstructionSeconds` (default 10 s), then the fixation cross comes. Each part shows a fixation cross and sends its own code (70, 71 or 72, then 79 at the end). Set a time to 0 to skip that part.
 - The output goes to `C:\meg-arc-agi\data\<participant>_<date-time>\`: `events.tsv`, the ARC game recordings, and the EyeLink `.edf` file.
 - `events.tsv` has one row for every button press: `input` (used), `input_ignored` (the game cannot use it, code 60), `input_dropped` (made during an animation, not used) and `wheel_merged` (extra scroll event of one press). Each row has the press time in GetSecs seconds.
 - `events.tsv` also has one `flip` row for every screen change, at the time it went on screen. The `note` tells what was shown:

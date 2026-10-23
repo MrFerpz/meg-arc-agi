@@ -11,7 +11,9 @@ restSeconds    = 30;                  % rest screen between games, then SPACE st
 eyesOpenPreSeconds    = 120;          % resting state: eyes open before the games (0 = skip)
 eyesOpenPostSeconds   = 60;           % resting state: eyes open after the games (0 = skip)
 eyesClosedPostSeconds = 60;           % resting state: eyes closed after the games (0 = skip)
+restingInstructionSeconds = 10;       % resting-state instructions show this long, then the cross starts by itself
 
 arc_meg_task(participant, games, triggerMode=triggerMode, eyelink=eyelink, windowed=windowed, ...
     minutesPerGame=minutesPerGame, restSeconds=restSeconds, eyesOpenPreSeconds=eyesOpenPreSeconds, ...
-    eyesOpenPostSeconds=eyesOpenPostSeconds, eyesClosedPostSeconds=eyesClosedPostSeconds)
+    eyesOpenPostSeconds=eyesOpenPostSeconds, eyesClosedPostSeconds=eyesClosedPostSeconds, ...
+    restingInstructionSeconds=restingInstructionSeconds)
