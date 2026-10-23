@@ -10,6 +10,9 @@ dependencies = [
 psychopy = [
     "psychopy>=2026.2.4",
 ]
+analysis = [
+    "mne>=1.8",
+]
 
 [dependency-groups]
 dev = [

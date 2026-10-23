@@ -78,4 +78,23 @@ arc_meg_task('P01', {'ls20', 'tr87', 'vc33'}, triggerMode='inpout', eyelink=true
 - Esc quits. Space starts the session and each next game.
 - The output goes to `C:\meg-arc-agi\data\<participant>_<date-time>\`: `events.tsv`, the ARC game recordings, and the EyeLink `.edf` file.
 - `events.tsv` has one row for every button press: `input` (used), `input_ignored` (the game cannot use it, code 60), `input_dropped` (made during an animation, not used) and `wheel_merged` (extra scroll event of one press). Each row has the press time in GetSecs seconds.
+- `events.tsv` also has one `flip` row for every screen change, at the time it went on screen. The `note` tells what was shown:
+  - `step=3 frame=2/5`: frame 2 of 5 of line 3 in that game's `.jsonl` recording (line 0 = the start frame).
+  - `refreshes=8`: screen refreshes since the frame before. It should equal `hold_flips` (in the game's first `flip` row). A bigger number means a dropped frame.
+  - `missed=1`: Psychtoolbox says the frame came late.
+  - `message=...`: a text screen (start, rest, next game).
+- The EyeLink calibration screens have no `flip` rows.
 - The facility's own trigger function will probably replace `writeTrigger` in `arc_meg_task.m`.
+
+## 6.6 After the session: put everything on the MEG clock
+
+Run this on your own computer, not the stimulus PC. You need the `.fif` file from the MEG acquisition PC and the run folder from the stimulus PC.
+
+```bash
+uv sync --extra analysis
+uv run --extra analysis python scripts/align_session.py --fif P01_raw.fif --run data/P01_20261022-174800
+```
+
+- The EyeLink `.edf` must be converted to text (`.asc`) first, with `edf2asc` from SR Research's EyeLink Developers Kit. The script does this itself if `edf2asc` is installed.
+- If the trigger cable also goes to the EyeLink Host PC, add `--eye-input`. Then the script uses the exact pulse times, not the messages.
+- The script prints the fit for each clock. The residual (how far each code is from the fitted line) should stay below about 2 ms. It writes `events_meg.tsv`, `eye_events_meg.tsv`, `gaze_meg.npz`, `matched_triggers.tsv` and `alignment.json` into the run folder.

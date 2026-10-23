@@ -178,9 +178,12 @@ end
         levelStr = char(bridgeModule.Bridge.level_text(int32(0), s.win_levels));
         if any(double(s.available_actions) == 6), mouseMap = mouseMapClick; else, mouseMap = mouseMapArrow; end
         drawFrame(squeeze(frames(1, :, :, :)), true, levelStr);
-        Screen('Flip', win);
+        [vbl, ~, ~, missed] = Screen('Flip', win);
         sendTrigger(C.GAME_START_BASE + number, ['trial_start ' id]);
         sendTrigger(C.LEVEL_START, 'level_start');
+        % step = line number in this game's ARC recording (.jsonl), 0 = the start frame.
+        step = 0;
+        logFlip(vbl, missed, sprintf('step=0 frame=1/1 hold_flips=%d', holdFlips), 1);
         mouseWasDown = false;
         mousePending = zeros(0, 4);   % mouse events read but not used yet
         flushInput();
@@ -204,6 +207,7 @@ end
             sendTrigger(double(bridgeModule.Bridge.input_code(int32(action))), sprintf('action %d', action));
 
             r = struct(bridge.apply(int32(action), int32(x), int32(y)));
+            step = step + 1;
             frames = uint8(r.frames);
             n = double(r.n_frames);
             onsetCodes = double(r.onset_codes);
@@ -215,9 +219,10 @@ end
             for i = 1:n
                 drawFrame(squeeze(frames(i, :, :, :)), i == 1 || (i == n && ~isempty(endCodes)), levelStr);
                 if i == 1
-                    vbl = Screen('Flip', win);
+                    [vbl, ~, ~, missed] = Screen('Flip', win);
                 else
-                    vbl = Screen('Flip', win, vbl + (holdFlips - 0.5) * ifi);
+                    prevVbl = vbl;
+                    [vbl, ~, ~, missed] = Screen('Flip', win, vbl + (holdFlips - 0.5) * ifi);
                 end
                 if i == 1
                     for c = onsetCodes, sendTrigger(c, sprintf('frame 1/%d', n)); end
@@ -225,6 +230,10 @@ end
                 if i == n
                     for c = endCodes, sendTrigger(c, sprintf('frame %d/%d', n, n)); end
                 end
+                % Logged after the triggers, so the log write cannot delay them.
+                note = sprintf('step=%d frame=%d/%d', step, i, n);
+                if i > 1, note = sprintf('%s refreshes=%d', note, round((vbl - prevVbl) / ifi)); end
+                logFlip(vbl, missed, note, n);
             end
             logEvent(vbl, 'response_done', [], '', action, x, y, n, char(state), levels);
             % Inputs made during an animation are dropped (one input = one response).
@@ -321,8 +330,15 @@ end
         Screen('TextSize', win, 28);
         DrawFormattedText(win, txt, 'center', 'center', 1);
         Screen('FillRect', win, double(code > 0), diodeRect);
-        Screen('Flip', win);
+        [vbl, ~, ~, missed] = Screen('Flip', win);
         if code > 0, sendTrigger(code, txt(1:min(20, end))); end
+        logFlip(vbl, missed, ['message=' txt], []);
+    end
+
+    function logFlip(vbl, missed, note, n)
+        % One 'flip' row per screen change, at the time it went on screen.
+        % missed=1: Psychtoolbox says the frame came later than asked.
+        logEvent(vbl, 'flip', [], sprintf('missed=%d %s', missed > 0, note), [], [], [], n);
     end
 
     function waitForSpace()
